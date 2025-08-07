@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Control de Proyecto</title>
+<style>
+  body { font-family: Arial, sans-serif; margin:1em; background:#f0f4f8;}
+  h2 { margin-top:1em;}
+  label { display:block; margin:0.2em 0 0.5em 0;}
+  input, select, button { padding:0.3em; margin-right:0.5em;}
+  select[multiple] {width:100%; min-height:60px;}
+  .section {background:white; padding:1em; margin-bottom:1.5em; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.1);}
+  table {border-collapse:collapse; width:100%; margin-top:0.8em;}
+  th, td {border:1px solid #bbb; padding:0.4em 0.6em; text-align:center; vertical-align:middle;}
+  th {background-color:#ddd;}
+  #personalTable th:nth-child(4), #personalTable td:nth-child(4),
+  #materialTable th:nth-child(3), #materialTable td:nth-child(3),
+  #otherTable th:nth-child(3), #otherTable td:nth-child(3),
+  #taskTable th:nth-child(7), #taskTable td:nth-child(7) {width:170px; white-space:nowrap;}
+  #dashboard {display:flex; gap:1em; flex-wrap:wrap; margin-top:1em;}
+  .card {
+    background:#fff; box-shadow:0 2px 4px rgb(0 0 0 / 0.1); border-radius:8px; padding:1em;
+    flex:1 1 300px; transition:transform 0.3s, box-shadow 0.3s;
+  }
+  .card:hover { transform:translateY(-5px) scale(1.03); box-shadow:0 8px 16px rgb(0 0 0 / 0.2);}
+  .progress-bar {background:#ccc; border-radius:10px; overflow:hidden; height:20px; margin-top:0.5em;}
+  .progress {height:100%; width:0%; background:#4caf50; transition:width 0.5s ease;}
+  .finished-btn {
+    cursor:pointer; background:#28a745; color:white; border:none; border-radius:4px;
+    padding:0.3em 0.6em; margin-bottom:3px; display:block;
+  }
+  .finished-btn:hover { background:#218838; }
+  button { cursor:pointer; font-size:0.85em;}
+  label.inline { display:inline-block; margin-right:10px;}
+  button.action-btn { padding:0.3em 0.6em; margin:2px 4px; border-radius:4px; border:none; white-space:nowrap;}
+  button.edit-btn {background-color:#007bff; color:white;}
+  button.edit-btn:hover {background-color:#0056b3;}
+  button.delete-btn {background-color:#dc3545; color:white;}
+  button.delete-btn:hover {background-color:#a71d2a;}
+  .inline-flex {display: inline-flex; align-items: center; gap: 0.5em; margin-right: 0.5em;}
+</style>
+</head>
+<body>
+<h1>Control de Proyecto</h1>
+
+
+<!-- Agregar Personal -->
+<div class="section">
+  <h2>Agregar Personal</h2>
+  <label class="inline">Nombre: <input type="text" id="newPersonalName" pattern="[A-Za-zÁ-ú\s]+" oninput="this.value = this.value.replace(/[^A-Za-zÁ-ú\s]/g, '')" maxlength="30" /></label>
+  <!-- NUEVO CAMPO APELLIDO -->
+  <label class="inline">Apellido: <input type="text" id="newPersonalLastName" pattern="[A-Za-zÁ-ú0-9\s]+" 
+          oninput="this.value = this.value.replace(/[^A-Za-zÁ-ú0-9\s]/g, '')" maxlength="30" required /></label>
+  <label class="inline">Costo por hora ($): <input type="number" id="newPersonalCost" min="0" step="0.01"/></label>
+  <label class="inline">Horas diarias permitidas: <input type="number" id="newPersonalHours" min="0" step="0.1" value="8" /></label>
+  <button onclick="addPersonal()">Añadir Personal</button>
+
+  <table id="personalTable">
+    <thead>
+      <tr>
+        <th>Nombre</th><th>Apellido</th><th>Costo/hora</th><th>Horas diarias</th><th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+
+<!-- Agregar Material -->
+<div class="section">
+  <h2>Agregar Material</h2>
+  <label class="inline">Nombre: <input type="text" id="newMaterialName" maxlength="30" /></label>
+  <label class="inline">Costo por unidad ($): <input type="number" id="newMaterialCost" min="0" step="0.01"/></label>
+  <button onclick="addMaterial()">Añadir Material</button>
+
+  <table id="materialTable">
+    <thead><tr><th>Nombre</th><th>Costo/unidad</th><th>Acciones</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+
+<!-- Agregar Otro Costo -->
+<div class="section">
+  <h2>Agregar Otro Costo</h2>
+  <label class="inline">Nombre: <input type="text" id="newOtherName" maxlength="30" /></label>
+  <label class="inline">Costo por unidad ($): <input type="number" id="newOtherCost" min="0" step="0.01"/></label>
+  <button onclick="addOther()">Añadir Otro Costo</button>
+
+  <table id="otherTable">
+    <thead><tr><th>Nombre</th><th>Costo/unidad</th><th>Acciones</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+
+<!-- Crear Tarea -->
+<div class="section">
+  <h2>Crear Tarea</h2>
+  <label class="inline">Nombre tarea: <input type="text" id="newTaskName" maxlength="30" /></label>
+  <label class="inline">Tiempo ejecución (horas): <input type="number" id="newTaskTime" min="0" step="0.01"/></label>
+  
+  <!-- Cambiado de multi-select a dropdown (select simple) para Personal -->
+  <label>Personal asignado:
+    <select id="taskPersonalDropdown"></select>
+  </label>
+  <button type="button" onclick="addPersonalToTask()">Añadir trabajador</button>
+  <div id="taskPersonalSelected"></div>
+
+  <!-- Para materiales: dropdown + input cantidad integrados -->
+  <label>Materiales asignados:
+    <div style="display:inline-flex;">
+      <select id="taskMaterialesDropdown"></select>
+      <input type="number" id="taskMaterialesQty" value="1" min="1" step="1" style="width:70px;" />
+      <button type="button" onclick="addMaterialToTask()">Añadir material</button>
+    </div>
+  </label>
+  <div id="taskMaterialesSelected"></div>
+
+  <!-- Para otros costos: dropdown + input cantidad integrados -->
+  <label>Otros costos asignados:
+    <div style="display:inline-flex;">
+      <select id="taskOtrosDropdown"></select>
+      <input type="number" id="taskOtrosQty" value="1" min="1" step="1" style="width:70px;" />
+      <button type="button" onclick="addOtherToTask()">Añadir costo</button>
+    </div>
+  </label>
+  <div id="taskOtrosSelected"></div>
+
+  <button onclick="addTask()">Añadir Tarea</button>
+
+  <table id="taskTable" style="table-layout: fixed; word-wrap: break-word;">
+    <thead>
+      <tr>
+        <th>Tarea</th><th>Tiempo(hrs)</th><th>Personal</th><th>Materiales</th><th>Otros costos</th><th>Estatus</th><th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+
+<!-- Dashboard -->
+<div class="section" id="dashboardSection">
+  <h2>Dashboard del Proyecto</h2>
+  <div id="dashboard"></div>
+</div>
+
+
+<script>
+  let personal = [];
+  let materiales = [];
+  let otrosCostos = [];
+  let tareas = [];
+  
+  // Nuevos arrays para controlar selección en creación tarea (para dropdown múltiple simulado)
+  let taskPersonalSelected = [];
+  let taskMaterialesSelected = [];
+  let taskOtrosSelected = [];
+
+  const genId = () => '_' + Math.random().toString(36).substr(2, 9);
+
+
+  // --- Funciones Personal ---
+  function addPersonal() {
+    const name = document.getElementById('newPersonalName').value.trim();
+    const lastName = document.getElementById('newPersonalLastName').value.trim();
+    const cost = parseFloat(document.getElementById('newPersonalCost').value);
+    const horasDia = parseFloat(document.getElementById('newPersonalHours').value);
+    
+    // Validar apellido obligatorio y máximo 30 caracteres alfanuméricos
+    const lastNameRegex = /^[A-Za-zÁ-ú0-9\s]{1,30}$/;
+    
+    if (!name || !lastName || !lastNameRegex.test(lastName) || isNaN(cost) || cost < 0 || isNaN(horasDia) || horasDia <= 0) {
+      alert('Por favor, ingresa nombre y apellido válido (máximo 30 caracteres, sin símbolos especiales), costo >= 0 y horas diarias positivas.');
+      return;
+    }
+    personal.push({ id: genId(), nombre: name, apellido: lastName, costoHora: cost, horasDiarias: horasDia });
+    document.getElementById('newPersonalName').value = '';
+    document.getElementById('newPersonalLastName').value = '';
+    document.getElementById('newPersonalCost').value = '';
+    document.getElementById('newPersonalHours').value = '8';
+    renderPersonal();
+    renderPersonalSelect();
+  }
+
+
+  function renderPersonal() {
+    const tbody = document.querySelector('#personalTable tbody');
+    tbody.innerHTML = '';
+    personal.forEach(p => {
+      const tr = document.createElement('tr');
+      tr.id = `personal-${p.id}`;
+      if (p.isEditing) {
+        tr.innerHTML = `
+          <td><input type="text" id="editPersonalName-${p.id}" value="${p.nombre}" /></td>
+          <td><input type="text" id="editPersonalLastName-${p.id}" value="${p.apellido}" maxlength="30"
+          pattern="[A-Za-zÁ-ú0-9\s]+" oninput="this.value=this.value.replace(/[^A-Za-zÁ-ú0-9\s]/g,'')" /></td>
+          <td><input type="number" min="0" step="0.01" id="editPersonalCost-${p.id}" value="${p.costoHora}" /></td>
+          <td><input type="number" min="0" step="0.1" id="editPersonalHours-${p.id}" value="${p.horasDiarias}" /></td>
+          <td>
+            <button class="action-btn edit-btn" onclick="savePersonal('${p.id}')">Guardar</button>
+            <button class="action-btn" onclick="cancelEditPersonal('${p.id}')">Cancelar</button>
+          </td>
+        `;
+      } else {
+        tr.innerHTML = `
+          <td>${p.nombre}</td>
+          <td>${p.apellido}</td>
+          <td>$${p.costoHora.toFixed(2)}</td>
+          <td>${p.horasDiarias}</td>
+          <td>
+            <button class="action-btn edit-btn" onclick="editPersonal('${p.id}')">Editar</button>
+            <button class="action-btn delete-btn" onclick="deletePersonal('${p.id}')">Eliminar</button>
+          </td>
+        `;
+      }
+      tbody.appendChild(tr);
+    });
+  }
+
+
+  function editPersonal(id) {
+    const p = personal.find(x => x.id === id);
+    if (!p) return;
+    p.isEditing = true;
+    renderPersonal();
+  }
+
+
+  function savePersonal(id) {
+    const name = document.getElementById(`editPersonalName-${id}`).value.trim();
+    const lastName = document.getElementById(`editPersonalLastName-${id}`).value.trim();
+    const cost = parseFloat(document.getElementById(`editPersonalCost-${id}`).value);
+    const hours = parseFloat(document.getElementById(`editPersonalHours-${id}`).value);
+    
+    const lastNameRegex = /^[A-Za-zÁ-ú0-9\s]{1,30}$/;
+    if (!name || !lastName || !lastNameRegex.test(lastName) || isNaN(cost) || cost < 0 || isNaN(hours) || hours <= 0) {
+      alert('Por favor, ingresa datos válidos y apellido correcto (máximo 30 caracteres, sin símbolos especiales).');
+      return;
+    }
+    const pIndex = personal.findIndex(x => x.id === id);
+    if (pIndex !== -1) {
+      personal[pIndex].nombre = name;
+      personal[pIndex].apellido = lastName;
+      personal[pIndex].costoHora = cost;
+      personal[pIndex].horasDiarias = hours;
+      personal[pIndex].isEditing = false;
+    }
+    renderPersonal();
+    renderPersonalSelect();
+    updateDashboard();
+  }
+
+
+  function cancelEditPersonal(id) {
+    const p = personal.find(x => x.id === id);
+    if (p) p.isEditing = false;
+    renderPersonal();
+  }
+
+
+  function deletePersonal(id) {
+    if (!confirm('¿Seguro que quieres eliminar este personal? Se eliminarán todas sus asignaciones en tareas.')) return;
+    personal = personal.filter(p => p.id !== id);
+    // También eliminar en tareas asignaciones de ese personal
+    tareas.forEach(t => {
+      t.personalAsignado = t.personalAsignado.filter(pid => pid !== id);
+    });
+    renderPersonal();
+    renderPersonalSelect();
+    renderTasks();
+    updateDashboard();
+  }
+
+
+  function renderPersonalSelect() {
+    const select = document.getElementById('taskPersonalDropdown');
+    select.innerHTML = '<option value="" disabled selected>Selecciona trabajador</option>';
+    personal.forEach(p => {
+      const option = document.createElement('option');
+      option.value = p.id;
+      option.textContent = `${p.nombre} ${p.apellido} ($${p.costoHora}/hr)`;
+      select.appendChild(option);
+    });
+  }
+
+
+  //Dinamica para añadir trabajador a la tarea (manejamos un array y visualizamos abajo)
+  function addPersonalToTask() {
+    const select = document.getElementById('taskPersonalDropdown');
+    const id = select.value;
+    if (!id || taskPersonalSelected.includes(id)) {
+      alert('Selecciona un trabajador válido que no esté agregado.');
+      return;
+    }
+    taskPersonalSelected.push(id);
+    renderTaskPersonalSelected();
+  }
+  function renderTaskPersonalSelected() {
+    const div = document.getElementById('taskPersonalSelected');
+    if (taskPersonalSelected.length === 0) {
+      div.innerHTML = '<p><i>No hay trabajadores asignados aún.</i></p>';
+      return;
+    }
+    div.innerHTML = '';
+    taskPersonalSelected.forEach(id => {
+      const p = personal.find(x => x.id === id);
+      if (!p) return;
+      const span = document.createElement('span');
+      span.className = 'inline-flex';
+      span.textContent = `${p.nombre} ${p.apellido}`;
+      const btnRemove = document.createElement('button');
+      btnRemove.type = 'button';
+      btnRemove.textContent = 'x';
+      btnRemove.style.background = '#dc3545';
+      btnRemove.style.color = 'white';
+      btnRemove.style.border = 'none';
+      btnRemove.style.borderRadius = '50%';
+      btnRemove.style.width = '20px';
+      btnRemove.style.height = '20px';
+      btnRemove.style.cursor = 'pointer';
+      btnRemove.onclick = () => {
+        taskPersonalSelected = taskPersonalSelected.filter(pid => pid !== id);
+        renderTaskPersonalSelected();
+      };
+      span.appendChild(btnRemove);
+      div.appendChild(span);
+    });
+  }
+
+
+  // --- Funciones Materiales ---
+  function addMaterial() {
+    const name = document.getElementById('newMaterialName').value.trim();
+    const cost = parseFloat(document.getElementById('newMaterialCost').value);
+    if (!name || isNaN(cost) || cost < 0) {
+      alert('Por favor, ingresa un nombre válido y costo >= 0.');
+      return;
+    }
+    // Validar nombre único (ignorando mayúsculas/minúsculas)
+    const nameLower = name.toLowerCase();
+    if (materiales.some(m => m.nombre.toLowerCase() === nameLower)) {
+      alert('Ya existe un material con ese nombre.');
+      return;
+    }
+    materiales.push({ id: genId(), nombre: name, costoUnidad: cost });
+    document.getElementById('newMaterialName').value = '';
+    document.getElementById('newMaterialCost').value = '';
+    renderMateriales();
+    renderMaterialSelect();
+  }
+
+
+  function renderMateriales() {
+    const tbody = document.querySelector('#materialTable tbody');
+    tbody.innerHTML = '';
+    materiales.forEach(m => {
+      const tr = document.createElement('tr');
+      tr.id = `material-${m.id}`;
+      if (m.isEditing) {
+        tr.innerHTML = `
+          <td><input type="text" id="editMaterialName-${m.id}" value="${m.nombre}" /></td>
+          <td><input type="number" min="0" step="0.01" id="editMaterialCost-${m.id}" value="${m.costoUnidad}" /></td>
+          <td>
+            <button class="action-btn edit-btn" onclick="saveMaterial('${m.id}')">Guardar</button>
+            <button class="action-btn" onclick="cancelEditMaterial('${m.id}')">Cancelar</button>
+          </td>
+        `;
+      } else {
+        tr.innerHTML = `
+          <td>${m.nombre}</td>
+          <td>$${m.costoUnidad.toFixed(2)}</td>
+          <td>
+            <button class="action-btn edit-btn" onclick="editMaterial('${m.id}')">Editar</button>
+            <button class="action-btn delete-btn" onclick="deleteMaterial('${m.id}')">Eliminar</button>
+          </td>
+        `;
+      }
+      tbody.appendChild(tr);
+    });
+  }
+
+
+  function editMaterial(id) {
+    const m = materiales.find(x => x.id === id);
+    if (!m) return;
+    m.isEditing = true;
+    renderMateriales();
+  }
+
+
+  function saveMaterial(id) {
+    const name = document.getElementById(`editMaterialName-${id}`).value.trim();
+    const cost = parseFloat(document.getElementById(`editMaterialCost-${id}`).value);
+    if (!name || isNaN(cost) || cost < 0) {
+      alert('Por favor, ingresa datos válidos.');
+      return;
+    }
+    // Validar que al guardar no se duplique otro material (excluyendo este mismo id)
+    const nameLower = name.toLowerCase();
+    if (materiales.some(m => m.nombre.toLowerCase() === nameLower && m.id !== id)) {
+      alert('Ya existe un material con ese nombre.');
+      return;
+    }
+    const index = materiales.findIndex(x => x.id === id);
+    if (index !== -1) {
+      materiales[index].nombre = name;
+      materiales[index].costoUnidad = cost;
+      materiales[index].isEditing = false;
+    }
+    renderMateriales();
+    renderMaterialSelect();
+    updateDashboard();
+  }
+
+
+  function cancelEditMaterial(id) {
+    const m = materiales.find(x => x.id === id);
+    if (m) m.isEditing = false;
+    renderMateriales();
+  }
+
+
+  function deleteMaterial(id) {
+    if (!confirm('¿Seguro que quieres eliminar este material? Se eliminarán todas sus cantidades asignadas en tareas.')) return;
+    materiales = materiales.filter(m => m.id !== id);
+    // Eliminar asignaciones en tareas
+    tareas.forEach(t => {
+      t.materialesAsignados = t.materialesAsignados.filter(ma => ma.id !== id);
+    });
+    renderMateriales();
+    renderMaterialSelect();
+    renderTasks();
+    updateDashboard();
+  }
+
+
+  function renderMaterialSelect() {
+    const select = document.getElementById('taskMaterialesDropdown');
+    select.innerHTML = '<option value="" disabled selected>Selecciona material</option>';
+    materiales.forEach(m => {
+      const option = document.createElement('option');
+      option.value = m.id;
+      option.textContent = m.nombre;
+      select.appendChild(option);
+    });
+  }
+
+
+  // Dinámica añadir material a tarea con cantidad
+  function addMaterialToTask() {
+    const select = document.getElementById('taskMaterialesDropdown');
+    const id = select.value;
+    const qtyInput = document.getElementById('taskMaterialesQty');
+    const qty = parseInt(qtyInput.value);
+    if (!id) {
+      alert('Selecciona un material válido.');
+      return;
+    }
+    if (isNaN(qty) || qty <= 0) {
+      alert('Ingresa una cantidad válida mayor que 0.');
+      return;
+    }
+    const existing = taskMaterialesSelected.find(m => m.id === id);
+    if (existing) {
+      alert('Este material ya fue añadido.');
+      return;
+    }
+    taskMaterialesSelected.push({ id, cantidad: qty });
+    renderTaskMaterialesSelected();
+  }
+  function renderTaskMaterialesSelected() {
+    const div = document.getElementById('taskMaterialesSelected');
+    if (taskMaterialesSelected.length === 0) {
+      div.innerHTML = '<p><i>No hay materiales asignados aún.</i></p>';
+      return;
+    }
+    div.innerHTML = '';
+    taskMaterialesSelected.forEach(({ id, cantidad }) => {
+      const m = materiales.find(x => x.id === id);
+      if (!m) return;
+      const span = document.createElement('span');
+      span.className = 'inline-flex';
+      span.textContent = `${m.nombre} (Cantidad: ${cantidad})`;
+      const btnRemove = document.createElement('button');
+      btnRemove.type = 'button';
+      btnRemove.textContent = 'x';
+      btnRemove.style.background = '#dc3545';
+      btnRemove.style.color = 'white';
+      btnRemove.style.border = 'none';
+      btnRemove.style.borderRadius = '50%';
+      btnRemove.style.width = '20px';
+      btnRemove.style.height = '20px';
+      btnRemove.style.cursor = 'pointer';
+      btnRemove.onclick = () => {
+        taskMaterialesSelected = taskMaterialesSelected.filter(i => i.id !== id);
+        renderTaskMaterialesSelected();
+      };
+      span.appendChild(btnRemove);
+      div.appendChild(span);
+    });
+  }
+
+
+  // --- Funciones Otros Costos ---
+  function addOther() {
+    const name = document.getElementById('newOtherName').value.trim();
+    const cost = parseFloat(document.getElementById('newOtherCost').value);
+    if (!name || isNaN(cost) || cost < 0) {
+      alert('Por favor, ingresa un nombre válido y costo >= 0.');
+      return;
+    }
+    otrosCostos.push({ id: genId(), nombre: name, costoUnidad: cost });
+    document.getElementById('newOtherName').value = '';
+    document.getElementById('newOtherCost').value = '';
+    renderOtros();
+    renderOtherSelect();
+  }
+
+
+  function renderOtros() {
+    const tbody = document.querySelector('#otherTable tbody');
+    tbody.innerHTML = '';
+    otrosCostos.forEach(o => {
+      const tr = document.createElement('tr');
+      tr.id = `other-${o.id}`;
+      if (o.isEditing) {
+        tr.innerHTML = `
+          <td><input type="text" id="editOtherName-${o.id}" value="${o.nombre}" /></td>
+          <td><input type="number" min="0" step="0.01" id="editOtherCost-${o.id}" value="${o.costoUnidad}" /></td>
+          <td>
+            <button class="action-btn edit-btn" onclick="saveOther('${o.id}')">Guardar</button>
+            <button class="action-btn" onclick="cancelEditOther('${o.id}')">Cancelar</button>
+          </td>
+        `;
+      } else {
+        tr.innerHTML = `
+          <td>${o.nombre}</td>
+          <td>$${o.costoUnidad.toFixed(2)}</td>
+          <td>
+            <button class="action-btn edit-btn" onclick="editOther('${o.id}')">Editar</button>
+            <button class="action-btn delete-btn" onclick="deleteOther('${o.id}')">Eliminar</button>
+          </td>
+        `;
+      }
+      tbody.appendChild(tr);
+    });
+  }
+
+
+  function editOther(id) {
+    const o = otrosCostos.find(x => x.id === id);
+    if (!o) return;
+    o.isEditing = true;
+    renderOtros();
+  }
+
+
+  function saveOther(id) {
+    const name = document.getElementById(`editOtherName-${id}`).value.trim();
+    const cost = parseFloat(document.getElementById(`editOtherCost-${id}`).value);
+    if (!name || isNaN(cost) || cost < 0) {
+      alert('Por favor, ingresa datos válidos.');
+      return;
+    }
+    const idx = otrosCostos.findIndex(x => x.id === id);
+    if (idx !== -1) {
+      otrosCostos[idx].nombre = name;
+      otrosCostos[idx].costoUnidad = cost;
+      otrosCostos[idx].isEditing = false;
+    }
+    renderOtros();
+    renderOtherSelect();
+    updateDashboard();
+  }
+
+
+  function cancelEditOther(id) {
+    const o = otrosCostos.find(x => x.id === id);
+    if (o) o.isEditing = false;
+    renderOtros();
+  }
+
+
+  function deleteOther(id) {
+    if (!confirm('¿Seguro que quieres eliminar este otro costo? Se eliminarán todas sus cantidades asignadas en tareas.')) return;
+    otrosCostos = otrosCostos.filter(o => o.id !== id);
+    // Eliminar asignaciones en tareas
+    tareas.forEach(t => {
+      t.otrosCostosAsignados = t.otrosCostosAsignados.filter(oc => oc.id !== id);
+    });
+    renderOtros();
+    renderOtherSelect();
+    renderTasks();
+    updateDashboard();
+  }
+
+
+  function renderOtherSelect() {
+    const select = document.getElementById('taskOtrosDropdown');
+    select.innerHTML = '<option value="" disabled selected>Selecciona otro costo</option>';
+    otrosCostos.forEach(o => {
+      const option = document.createElement('option');
+      option.value = o.id;
+      option.textContent = o.nombre;
+      select.appendChild(option);
+    });
+  }
+
+
+  // Dinámica añadir otro costo a tarea con cantidad
+  function addOtherToTask() {
+    const select = document.getElementById('taskOtrosDropdown');
+    const id = select.value;
+    const qtyInput = document.getElementById('taskOtrosQty');
+    const qty = parseInt(qtyInput.value);
+    if (!id) {
+      alert('Selecciona un otro costo válido.');
+      return;
+    }
+    if (isNaN(qty) || qty <= 0) {
+      alert('Ingresa una cantidad válida mayor que 0.');
+      return;
+    }
+    const existing = taskOtrosSelected.find(o => o.id === id);
+    if (existing) {
+      alert('Este otro costo ya fue añadido.');
+      return;
+    }
+    taskOtrosSelected.push({ id, cantidad: qty });
+    renderTaskOtrosSelected();
+  }
+  function renderTaskOtrosSelected() {
+    const div = document.getElementById('taskOtrosSelected');
+    if (taskOtrosSelected.length === 0) {
+      div.innerHTML = '<p><i>No hay otros costos asignados aún.</i></p>';
+      return;
+    }
+    div.innerHTML = '';
+    taskOtrosSelected.forEach(({ id, cantidad }) => {
+      const o = otrosCostos.find(x => x.id === id);
+      if (!o) return;
+      const span = document.createElement('span');
+      span.className = 'inline-flex';
+      span.textContent = `${o.nombre} (Cantidad: ${cantidad})`;
+      const btnRemove = document.createElement('button');
+      btnRemove.type = 'button';
+      btnRemove.textContent = 'x';
+      btnRemove.style.background = '#dc3545';
+      btnRemove.style.color = 'white';
+      btnRemove.style.border = 'none';
+      btnRemove.style.borderRadius = '50%';
+      btnRemove.style.width = '20px';
+      btnRemove.style.height = '20px';
+      btnRemove.style.cursor = 'pointer';
+      btnRemove.onclick = () => {
+        taskOtrosSelected = taskOtrosSelected.filter(i => i.id !== id);
+        renderTaskOtrosSelected();
+      };
+      span.appendChild(btnRemove);
+      div.appendChild(span);
+    });
+  }
+
+
+  // --- Funciones Tareas ---
+  function addTask() {
+    const name = document.getElementById('newTaskName').value.trim();
+    const timeHours = parseFloat(document.getElementById('newTaskTime').value);
+    
+    // Usamos las selecciones de arrays creados para dropdown múltiple simulado
+    const personalSelected = taskPersonalSelected.slice(); // Copia
+    if (!name || isNaN(timeHours) || timeHours <= 0 || personalSelected.length === 0) {
+      alert('Completa los datos de la tarea y asigna al menos un trabajador.');
+      return;
+    }
+
+
+    // Asignaciones materiales y otros con cantidades desde arrays
+    const matAssigned = taskMaterialesSelected.filter(m => m.cantidad > 0);
+    const othersAssigned = taskOtrosSelected.filter(o => o.cantidad > 0);
+
+
+    tareas.push({
+      id: genId(),
+      nombre: name,
+      tiempoEjecucion: timeHours,
+      personalAsignado: personalSelected,
+      materialesAsignados: matAssigned,
+      otrosCostosAsignados: othersAssigned,
+      estatus: 'pendiente',
+      isEditing: false
+    });
+    // Limpiar formularios y arreglos
+    document.getElementById('newTaskName').value = '';
+    document.getElementById('newTaskTime').value = '';
+    taskPersonalSelected = [];
+    taskMaterialesSelected = [];
+    taskOtrosSelected = [];
+    renderTaskPersonalSelected();
+    renderTaskMaterialesSelected();
+    renderTaskOtrosSelected();
+    renderTasks();
+    updateDashboard();
+  }
+
+
+  function renderTasks() {
+    const tbody = document.querySelector('#taskTable tbody');
+    tbody.innerHTML = '';
+    tareas.forEach(t => {
+      const tr = document.createElement('tr');
+      tr.id = `task-${t.id}`;
+
+      if (t.isEditing) {
+        // Mantenemos el estilo anterior en edición, por simplicidad
+        let personalOptions = personal.map(p =>
+          `<option value="${p.id}" ${t.personalAsignado.includes(p.id) ? 'selected' : ''}>${p.nombre} ${p.apellido}</option>`
+        ).join('');
+        let materialOptions = materiales.map(m =>
+          `<option value="${m.id}" ${t.materialesAsignados.find(ma => ma.id === m.id) ? 'selected' : ''}>${m.nombre}</option>`
+        ).join('');
+        let otrosOptions = otrosCostos.map(o =>
+          `<option value="${o.id}" ${t.otrosCostosAsignados.find(oc => oc.id === o.id) ? 'selected' : ''}>${o.nombre}</option>`
+        ).join('');
+
+
+        let materialesInputs = '';
+        materiales.forEach(m => {
+          const asignado = t.materialesAsignados.find(ma => ma.id === m.id);
+          const val = asignado ? asignado.cantidad : 0;
+          materialesInputs += `<label>${m.nombre}: <input type="number" min="0" step="1" value="${val}" id="editMatQty-${t.id}-${m.id}" style="width:60px;"></label> `;
+        });
+
+
+        let otrosInputs = '';
+        otrosCostos.forEach(o => {
+          const asignado = t.otrosCostosAsignados.find(oc => oc.id === o.id);
+          const val = asignado ? asignado.cantidad : 0;
+          otrosInputs += `<label>${o.nombre}: <input type="number" min="0" step="1" value="${val}" id="editOtherQty-${t.id}-${o.id}" style="width:60px;"></label> `;
+        });
+
+
+        tr.innerHTML = `
+          <td><input type="text" id="editTaskName-${t.id}" value="${t.nombre}" /></td>
+          <td><input type="number" min="0" step="0.01" id="editTaskTime-${t.id}" value="${t.tiempoEjecucion}" /></td>
+          <td><select id="editTaskPersonal-${t.id}" multiple size="5">${personalOptions}</select></td>
+          <td><select id="editTaskMateriales-${t.id}" multiple size="5" onchange="renderEditMaterialQuantityInputs('${t.id}')">${materialOptions}</select><div id="editMaterialInputs-${t.id}">${materialesInputs}</div></td>
+          <td><select id="editTaskOtros-${t.id}" multiple size="5" onchange="renderEditOtherQuantityInputs('${t.id}')">${otrosOptions}</select><div id="editOtherInputs-${t.id}">${otrosInputs}</div></td>
+          <td>${t.estatus === 'pendiente' ? 'Pendiente' : 'Concluida'}</td>
+          <td>
+            <button class="action-btn edit-btn" onclick="saveTask('${t.id}')">Guardar</button>
+            <button class="action-btn" onclick="cancelEditTask('${t.id}')">Cancelar</button>
+          </td>`;
+
+        renderEditMaterialQuantityInputs(t.id);
+        renderEditOtherQuantityInputs(t.id);
+    } else {
+      const personalNames = t.personalAsignado.map(id => {
+        const p = personal.find(p => p.id === id);
+        return p ? `${p.nombre} ${p.apellido}` : '';
+      }).join(', ');
+      const materialesText = t.materialesAsignados.map(ma => (materiales.find(m => m.id === ma.id)) ? `${materiales.find(m => m.id === ma.id).nombre} (${ma.cantidad})` : '').join(', ');
+      const otrosText = t.otrosCostosAsignados.map(oc => (otrosCostos.find(o => o.id === oc.id)) ? `${otrosCostos.find(o => o.id === oc.id).nombre} (${oc.cantidad})` : '').join(', ');
+      const statusText = t.estatus === 'pendiente' ? 'Pendiente' : 'Concluida';
+
+
+        tr.innerHTML = `
+          <td>${t.nombre}</td>
+          <td>${t.tiempoEjecucion}</td>
+          <td>${personalNames}</td>
+          <td>${materialesText}</td>
+          <td>${otrosText}</td>
+          <td>${statusText}</td>
+          <td>
+            ${t.estatus === 'pendiente' ? `<button class="finished-btn" onclick="markFinished('${t.id}')">Marcar concluida</button>` : ''}
+            <button class="action-btn edit-btn" onclick="editTask('${t.id}')">Editar</button>
+            <button class="action-btn delete-btn" onclick="deleteTask('${t.id}')">Eliminar</button>
+          </td>`;
+      }
+      tbody.appendChild(tr);
+    });
+  }
+
+
+  function renderEditMaterialQuantityInputs(taskId) {
+    const select = document.getElementById(`editTaskMateriales-${taskId}`);
+    const container = document.getElementById(`editMaterialInputs-${taskId}`);
+    container.innerHTML = '';
+    Array.from(select.selectedOptions).forEach(opt => {
+      const id = opt.value;
+      const m = materiales.find(x => x.id === id);
+      if (!m) return;
+      let cant = 0;
+      const tarea = tareas.find(t => t.id === taskId);
+      if (tarea) {
+        const asign = tarea.materialesAsignados.find(ma => ma.id === id);
+        if (asign) cant = asign.cantidad;
+      }
+      const label = document.createElement('label');
+      label.innerHTML = `${m.nombre}: <input type="number" min="0" step="1" value="${cant}" id="editMatQty-${taskId}-${id}" style="width:60px;"> `;
+      container.appendChild(label);
+    });
+  }
+
+
+  function renderEditOtherQuantityInputs(taskId) {
+    const select = document.getElementById(`editTaskOtros-${taskId}`);
+    const container = document.getElementById(`editOtherInputs-${taskId}`);
+    container.innerHTML = '';
+    Array.from(select.selectedOptions).forEach(opt => {
+      const id = opt.value;
+      const o = otrosCostos.find(x => x.id === id);
+      if (!o) return;
+      let cant = 0;
+      const tarea = tareas.find(t => t.id === taskId);
+      if (tarea) {
+        const asign = tarea.otrosCostosAsignados.find(oc => oc.id === id);
+        if (asign) cant = asign.cantidad;
+      }
+      const label = document.createElement('label');
+      label.innerHTML = `${o.nombre}: <input type="number" min="0" step="1" value="${cant}" id="editOtherQty-${taskId}-${id}" style="width:60px;"> `;
+      container.appendChild(label);
+    });
+  }
+
+
+  function editTask(id) {
+    const t = tareas.find(x => x.id === id);
+    if (!t) return;
+    t.isEditing = true;
+    renderTasks();
+  }
+  
+  function cancelEditTask(id) {
+    const t = tareas.find(x => x.id === id);
+    if (!t) return;
+    t.isEditing = false;
+    renderTasks();
+  }
+
+
+  function saveTask(id) {
+    const t = tareas.find(x => x.id === id);
+    if (!t) return;
+    const name = document.getElementById(`editTaskName-${id}`).value.trim();
+    const time = parseFloat(document.getElementById(`editTaskTime-${id}`).value);
+    const personalSelect = document.getElementById(`editTaskPersonal-${id}`);
+    const personalSelected = Array.from(personalSelect.selectedOptions).map(o => o.value);
+
+
+    if (!name || isNaN(time) || time < 0 || personalSelected.length === 0) {
+      alert('Por favor, ingresa nombre, tiempo válido y selecciona al menos un personal.');
+      return;
+    }
+
+
+    const materialesAsignados = [];
+    Array.from(document.getElementById(`editTaskMateriales-${id}`).selectedOptions).forEach(opt => {
+      const qtyInput = document.getElementById(`editMatQty-${id}-${opt.value}`);
+      if (qtyInput) {
+        const qty = parseInt(qtyInput.value);
+        if (!isNaN(qty) && qty > 0) materialesAsignados.push({ id: opt.value, cantidad: qty });
+      }
+    });
+
+
+    const otrosAsignados = [];
+    Array.from(document.getElementById(`editTaskOtros-${id}`).selectedOptions).forEach(opt => {
+      const qtyInput = document.getElementById(`editOtherQty-${id}-${opt.value}`);
+      if (qtyInput) {
+        const qty = parseInt(qtyInput.value);
+        if (!isNaN(qty) && qty > 0) otrosAsignados.push({ id: opt.value, cantidad: qty });
+      }
+    });
+
+
+    t.nombre = name;
+    t.tiempoEjecucion = time;
+    t.personalAsignado = personalSelected;
+    t.materialesAsignados = materialesAsignados;
+    t.otrosCostosAsignados = otrosAsignados;
+    t.isEditing = false;
+
+
+    renderTasks();
+    updateDashboard();
+  }
+
+
+  function deleteTask(id) {
+    if (!confirm('¿Seguro que quieres eliminar esta tarea?')) return;
+    tareas = tareas.filter(t => t.id !== id);
+    renderTasks();
+    updateDashboard();
+  }
+
+
+  function markFinished(id) {
+    const t = tareas.find(x => x.id === id);
+    if (t) {
+      t.estatus = 'terminada';
+      renderTasks();
+      updateDashboard();
+    }
+  }
+
+
+  function updateDashboard() {
+    const dash = document.getElementById('dashboard');
+    dash.innerHTML = '';
+
+
+    const totalTareas = tareas.length;
+    const tareasTerminadas = tareas.filter(t => t.estatus === 'terminada').length;
+    const avancePorc = totalTareas ? (tareasTerminadas / totalTareas) * 100 : 0;
+
+
+    let costoEstPersonal = 0;
+    let costoEstMat = 0;
+    let costoEstOtros = 0;
+
+
+    tareas.forEach(t => {
+      t.personalAsignado.forEach(pid => {
+        const p = personal.find(x => x.id === pid);
+        if (p) {
+          costoEstPersonal += p.costoHora * t.tiempoEjecucion;
+        }
+      });
+      t.materialesAsignados.forEach(ma => {
+        const m = materiales.find(x => x.id === ma.id);
+        if (m) costoEstMat += m.costoUnidad * ma.cantidad;
+      });
+      t.otrosCostosAsignados.forEach(oc => {
+        const o = otrosCostos.find(x => x.id === oc.id);
+        if (o) costoEstOtros += o.costoUnidad * oc.cantidad;
+      });
+    });
+
+
+    let costoRealPersonal = 0;
+    let costoRealMat = 0;
+    let costoRealOtros = 0;
+
+
+    tareas.filter(t => t.estatus === 'terminada').forEach(t => {
+      t.personalAsignado.forEach(pid => {
+        const p = personal.find(x => x.id === pid);
+        if (p) {
+          costoRealPersonal += p.costoHora * t.tiempoEjecucion;
+        }
+      });
+      t.materialesAsignados.forEach(ma => {
+        const m = materiales.find(x => x.id === ma.id);
+        if (m) costoRealMat += m.costoUnidad * ma.cantidad;
+      });
+      t.otrosCostosAsignados.forEach(oc => {
+        const o = otrosCostos.find(x => x.id === oc.id);
+        if (o) costoRealOtros += o.costoUnidad * oc.cantidad;
+      });
+    });
+
+
+    const costoEstTotal = costoEstPersonal + costoEstMat + costoEstOtros;
+    const costoRealTotal = costoRealPersonal + costoRealMat + costoRealOtros;
+
+
+    const horasPorPersonal = {};
+    tareas.forEach(t => {
+      t.personalAsignado.forEach(pid => {
+        horasPorPersonal[pid] = (horasPorPersonal[pid] || 0) + t.tiempoEjecucion;
+      });
+    });
+
+
+    const sobreUtilizados = Object.entries(horasPorPersonal)
+      .filter(([pid, horas]) => {
+        const p = personal.find(x => x.id === pid);
+        return p && horas > p.horasDiarias;
+      })
+      .map(([pid, horas]) => {
+        const p = personal.find(x => x.id === pid);
+        return p ? `${p.nombre} ${p.apellido} (${horas.toFixed(2)} hrs, límite diario: ${p.horasDiarias} hrs)` : '';
+      });
+
+
+    // Cambio de orden: avance, personal sobreutilizado, luego costos abajo
+    const cards = [
+      {
+        title: 'Avance del proyecto',
+        content: `<div>${avancePorc.toFixed(1)}%</div>
+          <div class="progress-bar"><div class="progress" style="width:${avancePorc}%;"></div></div>`
+      },
+      {
+        title: 'Personal Sobreutilizado (más de sus horas diarias permitidas)',
+        content: sobreUtilizados.length ? sobreUtilizados.join('<br>') : 'Ninguno'
+      },
+      {
+        title: 'Costo Total Estimado',
+        content: `<b>Total:</b> $${costoEstTotal.toFixed(2)}<br>
+                  <b>Personal:</b> $${costoEstPersonal.toFixed(2)}<br>
+                  <b>Materiales:</b> $${costoEstMat.toFixed(2)}<br>
+                  <b>Otros costos:</b> $${costoEstOtros.toFixed(2)}`
+      },
+      {
+        title: 'Costo Total Real (tareas concluidas)',
+        content: `<b>Total:</b> $${costoRealTotal.toFixed(2)}<br>
+                  <b>Personal:</b> $${costoRealPersonal.toFixed(2)}<br>
+                  <b>Materiales:</b> $${costoRealMat.toFixed(2)}<br>
+                  <b>Otros costos:</b> $${costoRealOtros.toFixed(2)}`
+      }
+    ];
+
+
+    cards.forEach(card => {
+      const div = document.createElement('div');
+      div.className = 'card';
+      div.innerHTML = `<h3>${card.title}</h3><p>${card.content}</p>`;
+      dash.appendChild(div);
+    });
+  }
+
+
+  function init() {
+    renderPersonal();
+    renderMateriales();
+    renderOtros();
+    renderPersonalSelect();
+    renderMaterialSelect();
+    renderOtherSelect();
+    renderTaskPersonalSelected();
+    renderTaskMaterialesSelected();
+    renderTaskOtrosSelected();
+    renderTasks();
+    updateDashboard();
+  }
+
+
+  init();
+</script>
+</body>
+</html>
